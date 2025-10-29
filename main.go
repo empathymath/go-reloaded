@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	// Validate command-line arguments
+	// ✅ Έλεγχος ορισμάτων
 	if len(os.Args) != 3 {
 		fmt.Println("Usage: go run . <input_file> <output_file>")
 		os.Exit(1)
@@ -18,28 +18,36 @@ func main() {
 	inputFile := os.Args[1]
 	outputFile := os.Args[2]
 
-	// Διαβάζουμε το αρχείο
+	// ✅ Διαβάζουμε το αρχείο
 	content, err := os.ReadFile(inputFile)
 	if err != nil {
 		fmt.Printf("Error reading file %s: %v\n", inputFile, err)
 		os.Exit(1)
 	}
 
-	// Καλούμε το Tokenizer για να πάρουμε τα tokens
+	// ✅ Tokenize το περιεχόμενο
 	tokens := process.Tokenize(string(content))
-	// 2Εφαρμόζουμε τον κανόνα (hex)
+
+	// ✅ Εφαρμόζουμε σταδιακά τους κανόνες
 	tokens = process.ApplyHex(tokens)
 	tokens = process.ApplyBin(tokens)
+	tokens = process.ApplyTextCommands(tokens)
+	
 
-	// Επανασυνθέτουμε τα tokens σε ένα κείμενο με απλό διάστημα μεταξύ
-	processedText := strings.Join(tokens, " ")
+	// ✅ Επανασύνθεση πριν το punctuation stage
+	text := strings.Join(tokens, " ")
 
-	// Εγγραφή στο αρχείο αποτελέσματος
-	err = os.WriteFile(outputFile, []byte(processedText), 0644)
+	// ✅ Εφαρμόζουμε το punctuation fixer (δέχεται string, όχι []string)
+	text = process.ApplyPunctuation(text)
+	text = process.ApplyAtoAn(text)
+	text = process.ApplyQuotes(text)
+
+	// ✅ Εγγραφή αποτελέσματος
+	err = os.WriteFile(outputFile, []byte(text), 0644)
 	if err != nil {
 		fmt.Printf("Error writing file %s: %v\n", outputFile, err)
 		os.Exit(1)
 	}
 
-	fmt.Println("Text tokenized successfully!")
+	fmt.Println("✅ Text processed successfully!")
 }
