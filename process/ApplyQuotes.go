@@ -5,14 +5,19 @@ import (
 	"strings"
 )
 
-// ApplyQuotes fixes single quotes around words or phrases
+// ApplyQuotes fixes single quotes and contractions
 func ApplyQuotes(text string) string {
-	// Regex to match anything inside single quotes (including spaces)
-	re := regexp.MustCompile(`'([^']*)'`)
-
-	return re.ReplaceAllStringFunc(text, func(match string) string {
-		// Remove leading/trailing spaces inside the quotes
-		inner := strings.Trim(match, "' ") // remove ' and spaces
-		return "'" + inner + "'"           // put quotes back tight
+	// 1. Fix paired quotes (trim spaces inside)
+	reQuotes := regexp.MustCompile(`'([^']*)'`)
+	text = reQuotes.ReplaceAllStringFunc(text, func(match string) string {
+		inner := strings.Trim(match, "' ")
+		return "'" + inner + "'"
 	})
+
+	// 2. Fix contractions (remove spaces around internal apostrophes)
+	// Example: don ' t → don't
+	reContractions := regexp.MustCompile(`(\w+)\s+'\s+(\w+)`)
+	text = reContractions.ReplaceAllString(text, `$1'$2`)
+
+	return text
 }
