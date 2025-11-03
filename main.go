@@ -32,7 +32,6 @@ func main() {
 	tokens = process.ApplyHex(tokens)
 	tokens = process.ApplyBin(tokens)
 	tokens = process.ApplyTextCommands(tokens)
-	
 
 	// ✅ Επανασύνθεση πριν το punctuation stage
 	text := strings.Join(tokens, " ")
@@ -40,10 +39,13 @@ func main() {
 	// ✅ Εφαρμόζουμε το punctuation fixer (δέχεται string, όχι []string)
 	text = process.ApplyPunctuation(text)
 	text = process.ApplyAtoAn(text)
+
+	fmt.Println("DEBUG: before ApplyQuotes ->", text) // <-- add
 	text = process.ApplyQuotes(text)
+	fmt.Println("DEBUG: after  ApplyQuotes ->", text) // <-- add
 
 	// ✅ Εγγραφή αποτελέσματος
-	err = os.WriteFile(outputFile, []byte(text), 0644)
+	err = os.WriteFile(outputFile, []byte(text), 0o644)
 	if err != nil {
 		fmt.Printf("Error writing file %s: %v\n", outputFile, err)
 		os.Exit(1)
