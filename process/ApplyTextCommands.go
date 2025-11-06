@@ -1,68 +1,83 @@
 package process
 
 import (
-	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
-	"unicode"
 )
 
-// ApplyTextCommands handles (up), (low), (cap), (up, N), (low, N), (cap, N)
-func ApplyTextCommands(tokens []string) []string {
-	result := []string{}
+var (
+	// ο αριθμός μετά το κόμμα είναι προαιρετικός πλέον
+	cmdRe = regexp.MustCompile(`^\(\s*([A-Za-z]+)(?:\s*,\s*(\d+))?\s*\)$`)
+	// θεωρούμε λέξη ό,τι περιέχει γράμμα ή αριθμό (Unicode digits/letters)
+	wordRe  = regexp.MustCompile(`[\p{L}\p{N}]`)
+	alphaRe = regexp.MustCompile(`\p{L}+`)
+)
 
-	for i := 0; i < len(tokens); i++ {
-		token := tokens[i]
-
-		// Ελέγχουμε αν είναι εντολή
-		if strings.HasPrefix(token, "(") && strings.HasSuffix(token, ")") {
-			cmd := strings.TrimSuffix(strings.TrimPrefix(token, "("), ")")
-			parts := strings.Split(cmd, ",")
-			action := strings.TrimSpace(parts[0])
-			count := 1
-
-			// Αν υπάρχει αριθμός (π.χ. (up, 3))
-			if len(parts) == 2 {
-				fmt.Sscanf(parts[1], "%d", &count)
-			}
-
-			// Αν δεν υπάρχουν προηγούμενες λέξεις, συνεχίζουμε
-			if len(result) == 0 {
-				continue
-			}
-
-			// Εφαρμόζουμε τη μετατροπή στις προηγούμενες λέξεις
-			for j := len(result) - 1; j >= 0 && count > 0; j-- {
-				switch action {
-				case "up":
-					result[j] = strings.ToUpper(result[j])
-				case "low":
-					result[j] = strings.ToLower(result[j])
-				case "cap":
-					result[j] = capitalize(result[j])
-				default:
-					fmt.Printf("Unknown command: %s\n", action)
-				}
-				count--
-			}
-
-			continue
-		}
-
-		result = append(result, token)
-	}
-
-	return result
+func isWord(token string) bool {
+	return wordRe.MatchString(token)
 }
 
-// capitalize μετατρέπει την πρώτη ρουτίνα ενός string σε κεφαλαίο γράμμα
-func capitalize(word string) string {
-	if word == "" {
-		return ""
+func applyTransformToToken(tok, cmd string) string {
+	lcmd := strings.ToLower(cmd)
+	switch lcmd {
+	case "up", "upper", "uppercase":
+		return alphaRe.ReplaceAllStringFunc(tok, func(s string) string {
+			return strings.ToUpper(s)
+		})
+	case "low", "lower", "lowercase":
+		return alphaRe.ReplaceAllStringFunc(tok, func(s string) string {
+			return strings.ToLower(s)
+		})
+	case "cap", "capitalize":
+		return alphaRe.ReplaceAllStringFunc(tok, func(s string) string {
+			if len(s) == 0 {
+				return s
+			}
+			if len(s) == 1 {
+				return strings.ToUpper(s)
+			}
+			return strings.ToUpper(s[:1]) + strings.ToLower(s[1:])
+		})
+	default:
+		return tok
 	}
-	runes := []rune(word)
-	runes[0] = unicode.ToUpper(runes[0])
-	for i := 1; i < len(runes); i++ {
-		runes[i] = unicode.ToLower(runes[i])
+}
+
+// ApplyTextCommands εφαρμόζει εντολές τύπου (cmd[, N]) στις προηγούμενες N λέξεις.
+// Μετράει και τα numeric tokens ως λέξεις, αλλά δεν αλλάζει τους αριθμούς — μόνο τα alphabetic runs.
+func ApplyTextCommands(tokens []string) []string {
+	out := make([]string, 0, len(tokens))
+	appendedIndex := make(map[int]int)
+
+	for i := 0; i < len(tokens); i++ {
+		t := tokens[i]
+		if m := cmdRe.FindStringSubmatch(t); m != nil {
+			cmd := m[1]
+			n := 1
+			if m[2] != "" {
+				if v, err := strconv.Atoi(m[2]); err == nil && v > 0 {
+					n = v
+				}
+			}
+
+			changed := 0
+			j := i - 1
+			for j >= 0 && changed < n {
+				if isWord(tokens[j]) {
+					tokens[j] = applyTransformToToken(tokens[j], cmd)
+					if idx, ok := appendedIndex[j]; ok {
+						out[idx] = tokens[j]
+					}
+					changed++
+				}
+				j--
+			}
+			// δεν εκπέμπουμε την εντολή
+			continue
+		}
+		appendedIndex[i] = len(out)
+		out = append(out, t)
 	}
-	return string(runes)
+	return out
 }

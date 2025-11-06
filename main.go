@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"go-reloaded/process"
@@ -40,9 +41,13 @@ func main() {
 	text = process.ApplyPunctuation(text)
 	text = process.ApplyAtoAn(text)
 
-	fmt.Println("DEBUG: before ApplyQuotes ->", text) // <-- add
 	text = process.ApplyQuotes(text)
-	fmt.Println("DEBUG: after  ApplyQuotes ->", text) // <-- add
+
+	// cleanup: remove space after opening single/double quote when followed by a letter
+	reSingle := regexp.MustCompile(`'\s+([A-Za-z])`)
+	text = reSingle.ReplaceAllString(text, `'$1`)
+	reDouble := regexp.MustCompile(`"\s+([A-Za-z])`)
+	text = reDouble.ReplaceAllString(text, `"$1`)
 
 	// ✅ Εγγραφή αποτελέσματος
 	err = os.WriteFile(outputFile, []byte(text), 0o644)
