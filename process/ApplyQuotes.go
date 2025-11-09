@@ -6,114 +6,94 @@ import (
 	"unicode"
 )
 
-// ApplyQuotes: δεν μετατρέπει αποστρόφους που είναι μέρος συστολής (don't) σε quotes.
-// Αν το quote είναι πραγματικό ζευγάρι, trim-άρει τα άκρα του εσωτερικού περιεχομένου,
-// προσθέτει κενό μετά σημείων στίξης πριν από άνοιγμα quote και καθαρίζει κενά πριν/μετά.
+// ApplyQuotes:
+// - Δεν πειράζει καθόλου συστολές (don't, I'm, you're)
+// - Διορθώνει quotes του project (' ... ')
+// - Κάνει trim τα κενά ΜΕΣΑ στα quotes
+// - Ενώνει σωστά quotes με σημεία στίξης
+// - Δεν κρασάρει ποτέ (safe slice handling)
 func ApplyQuotes(text string) string {
-	// normalize common Unicode quote variants and invisible spaces
-	repls := map[string]string{
-		"‘": "'", "’": "'", "‚": "'", "‛": "'",
-		"“": "\"", "”": "\"", "„": "\"",
-		"\u00A0": " ",
-		"\u200B": "",
-		"\u200C": "",
-		"\u200D": "",
-		"\uFEFF": "",
-	}
-	for k, v := range repls {
-		text = strings.ReplaceAll(text, k, v)
-	}
+	runes := []rune(text)
+	n := len(runes)
 
-	var b strings.Builder
-	r := []rune(text)
-	var lastRune rune // last rune written to builder
+	var out strings.Builder
 
-	writeRune := func(rr rune) {
-		b.WriteRune(rr)
-		lastRune = rr
-	}
-	writeString := func(s string) {
-		if s == "" {
-			return
+	inQuote := false         // true όταν βρισκόμαστε μέσα σε quotes
+	quoteChar := rune(0)     // ' ή "
+	quoteStartIndex := 0     // το index στο out όπου ξεκινάει το quote
+
+	for i := 0; i < n; i++ {
+		ch := runes[i]
+
+		// 1. Αν πρόκειται για συστολή (contraction) όπως don't, I'm, you're
+		// τότε η απόστροφος βρίσκεται ανάμεσα σε δύο γράμματα
+		// και ΔΕΝ πρέπει να την πειράξουμε.
+		if ch == '\'' {
+			if i > 0 && i+1 < n &&
+				unicode.IsLetter(runes[i-1]) &&
+				unicode.IsLetter(runes[i+1]) {
+
+				out.WriteRune(ch)
+				continue
+			}
 		}
-		b.WriteString(s)
-		rs := []rune(s)
-		lastRune = rs[len(rs)-1]
-	}
 
-	isPunctBefore := func(ch rune) bool {
-		// treat common punctuation that should be followed by a space before an opening quote
-		switch ch {
-		case '.', ',', ':', ';', '!', '?', '(', '[', '{', '—', '–', '-', '/':
-			return true
-		}
-		return false
-	}
-
-	for i := 0; i < len(r); {
-		ch := r[i]
-
-		// handle apostrophe inside words (possibly with spaces inserted by prior stages)
+		// 2. Αν το χαρακτήρας είναι quote (' ή ")
 		if ch == '\'' || ch == '"' {
-			quote := ch
 
-			// detect contraction-like pattern: nearest non-space left and right are alnum -> apostrophe
-			l := i - 1
-			for l >= 0 && unicode.IsSpace(r[l]) {
-				l--
-			}
-			rg := i + 1
-			for rg < len(r) && unicode.IsSpace(r[rg]) {
-				rg++
-			}
-			if l >= 0 && rg < len(r) && (unicode.IsLetter(r[l]) || unicode.IsDigit(r[l])) && (unicode.IsLetter(r[rg]) || unicode.IsDigit(r[rg])) {
-				// treat as apostrophe/contraction, write the literal char and advance
-				writeRune(ch)
-				i++
+			// --- ΑΝΟΙΓΜΑ QUOTE ---
+			if !inQuote {
+				inQuote = true
+				quoteChar = ch
+				quoteStartIndex = out.Len() // αποθηκεύουμε πού ξεκίνησε
+				out.WriteRune(ch)
 				continue
 			}
 
-			// find matching closing quote
-			j := i + 1
-			for j < len(r) && r[j] != quote {
-				j++
-			}
-			// no closing quote -> write as normal char
-			if j >= len(r) {
-				writeRune(ch)
-				i++
+			// --- ΚΛΕΙΣΙΜΟ QUOTE ---
+			if inQuote && ch == quoteChar {
+				inQuote = false
+
+				// Παίρνουμε όλο το ήδη γραμμένο κείμενο
+				full := out.String()
+
+				// Το μέρος πριν το opening quote (συμπεριλαμβάνει το quote)
+				before := full[:quoteStartIndex+1]
+
+				// Το εσωτερικό των quotes
+				inner := strings.TrimSpace(full[quoteStartIndex+1:])
+
+				// Χτίζουμε από την αρχή το νέο out
+				out.Reset()
+				out.WriteString(before)
+				out.WriteString(inner)
+				out.WriteRune(ch)
+
 				continue
 			}
-
-			// if previous written rune is punctuation and not a space, ensure a space before opening quote
-			if lastRune != 0 && lastRune != ' ' && isPunctBefore(lastRune) {
-				writeRune(' ')
-			}
-
-			// trim only edges inside quotes, keep interior spacing intact
-			inner := strings.TrimSpace(string(r[i+1 : j]))
-			writeRune(quote)
-			writeString(inner)
-			writeRune(quote)
-			i = j + 1
-			continue
 		}
 
-		writeRune(ch)
-		i++
+		// Κανονική εγγραφή χαρακτήρα
+		out.WriteRune(ch)
 	}
 
-	out := b.String()
+	result := out.String()
 
-	// remove space between closing quote and punctuation: 'something' . -> 'something'.
-	reQuotePunct := regexp.MustCompile(`'([[:space:]]+)([.,;:?!])`)
-	out = reQuotePunct.ReplaceAllString(out, `'$2`)
-	reQuotePunctD := regexp.MustCompile(`"([[:space:]]+)([.,;:?!])`)
-	out = reQuotePunctD.ReplaceAllString(out, `"$2`)
+	// 3. Αφαιρούμε επιπλέον κενά μετά το άνοιγμα quote:
+	// '   word → 'word
+	re1 := regexp.MustCompile(`'\s+([A-Za-z])`)
+	result = re1.ReplaceAllString(result, `'$1`)
 
-	// fallback: fix accidental spaces around apostrophes in contractions if any remain
-	reContr := regexp.MustCompile(`([A-Za-z0-9])[[:space:]]*'[[:space:]]*([A-Za-z0-9])`)
-	out = reContr.ReplaceAllString(out, `$1'$2`)
+	re2 := regexp.MustCompile(`"\s+([A-Za-z])`)
+	result = re2.ReplaceAllString(result, `"$1`)
 
-	return out
+	// 4. Αφαιρούμε κενά πριν από σημεία στίξης:
+	// 'word ' ! → 'word!
+	re3 := regexp.MustCompile(`'(\s+)([.,!?;:])`)
+	result = re3.ReplaceAllString(result, `'$2`)
+
+	re4 := regexp.MustCompile(`"(\s+)([.,!?;:])`)
+	result = re4.ReplaceAllString(result, `"$2`)
+
+	return result
 }
