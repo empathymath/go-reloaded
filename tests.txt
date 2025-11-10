@@ -1,6 +1,5 @@
 ##  **Golden Test Set (Functional test cases — natural language)**
 
-Παρακάτω σημειώνω βασικά functional tests (όσα είναι στα audit examples) και μετά πρωτότυπα, tricky παραδείγματα
 
 ### **A. Βασικά / audit παραδείγματα**
 
@@ -85,7 +84,7 @@ She saw a Honest man. She found a house.
 Wait ! ? Why... no ?   
 it (cap) was a incredible day , the sun was shining , and we saw 1E (hex) birds flying across the sky (up) !   
 then , john said : '  this is a happy moment  ' , but i told him it was 101 (bin) times better (cap,5) .   
-later , a honest man approached and whispered : '  YOU ARE A HERO  ' (low,4) ! !   
+later , a honest man approached and whispered : '  YOU ARE A HERO  ' (low,4) !   !   
 in the distance , we could hear an echo of laughter ... it felt like a dream (cap,5) , truly unforgettable (up,2) !   
 and finally , we all shouted victory (up) together , because it was ours .
 
@@ -99,7 +98,7 @@ She said: 'I will SHOUT now' and left.
 test 30 sample.   
 She saw an Honest man. She found a house.   
 Wait!? Why... no?   
-it was an incredible day, the sun was shining, and we saw 30 birds flying across the SKY!   
+it was an incredible day, the sun was shining, and we saw 30 birds flying across the SKY\!   
 then, John said: 'This is a happy moment', but I told him It Was 5 Times Better.   
 later, an honest man approached and whispered: 'you are a hero'!!   
 in the distance, we could hear an echo of laughter... It Felt Like A Dream, TRULY UNFORGETTABLE!   

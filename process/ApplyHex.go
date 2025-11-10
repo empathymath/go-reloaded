@@ -5,23 +5,24 @@ import (
 	"strconv"
 )
 
-// ApplyHex scans the tokens for "(hex)" and converts the previous token from hex to decimal.
+// ApplyHex: Σαρώνει τα tokens για το "(hex)" και μετατρέπει το προηγούμενο token από δεκαεξαδικό σε δεκαδικό.
 func ApplyHex(tokens []string) []string {
 	result := []string{}
 
 	for i := 0; i < len(tokens); i++ {
+		// Αν το token είναι "(hex)", μετατρέπουμε το προηγούμενο token από δεκαεξαδικό σε δεκαδικό
 		if tokens[i] == "(hex)" {
 			if len(result) == 0 {
-				// Δεν υπάρχει προηγούμενη λέξη, αγνοούμε
+				// Δεν υπάρχει προηγούμενη λέξη, αγνοείται
 				continue
 			}
 
-			// Προσπαθούμε να μετατρέψουμε την προηγούμενη λέξη από hex σε decimal
+			// Μετατροπή της προηγούμενης λέξης από hex σε decimal
 			hexStr := result[len(result)-1]
 			val, err := strconv.ParseInt(hexStr, 16, 64)
 			if err != nil {
-				// Αν δεν είναι αριθμός, αγνοούμε
-				fmt.Printf("Warning: cannot convert '%s' from hex\n", hexStr)
+				// Αν δεν είναι αριθμός, αγνοείται
+				fmt.Printf("Προειδοποίηση: δεν ήταν δυνατή η μετατροπή του '%s' από δεκαεξαδικό\n", hexStr)
 				continue
 			}
 
@@ -30,9 +31,10 @@ func ApplyHex(tokens []string) []string {
 			continue
 		}
 
-		// Προσθέτουμε την τρέχουσα λέξη στο αποτέλεσμα
+		// Προσθέτουμε το τρέχον token στο αποτέλεσμα
 		result = append(result, tokens[i])
 	}
 
+	// Επιστρέφουμε το νέο slice με τις μετατροπές
 	return result
 }
